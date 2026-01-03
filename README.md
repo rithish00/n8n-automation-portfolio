@@ -40,7 +40,7 @@ Creates personalized AI voice agents for local service businesses and sends live
 
 ---
 
-### 3. Restaurant Voice Agent Automation
+### 3. Custom AI Voice Assistants for Restaurant Operations
 Builds restaurant-specific AI voice assistants capable of handling reservations, takeout, and common inquiries.
 
 **Key capabilities**
