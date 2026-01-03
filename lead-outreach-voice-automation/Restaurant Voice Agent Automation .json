@@ -1,0 +1,676 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2416,
+        388
+      ],
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1968,
+        388
+      ],
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1672,
+        320
+      ],
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "website",
+              "value": "={{ $('per services sheet').item.json.Email.split('@')[1] }}",
+              "type": "string"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('extract business name').item.json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1168,
+        96
+      ],
+      "name": "Input Variables"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{REDACTED_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"sonar-pro\",\n  \"messages\": [\n     {\n      \"role\": \"system\",\n      \"content\": \"You are a highly skilled business researcher focused on local restaurants. You will be provided the business name and website. Your job is to gather factual, concise, and relevant details about the restaurant.\\n\\nUse web search and publicly available information to find and verify the following:\\n- Operating hours\\n- Address and contact information such as email and phone if available\\n- Cuisine type and style of dining (e.g. casual, fine dining, fast casual)\\n- Menu offerings or specialties\\n- Pricing or average cost per meal if available\\n- Reservation or ordering options (dine-in, takeout, delivery, online ordering)\\n- Payment methods\\n- Frequently asked questions\\n- Any unique or noteworthy information about the restaurant\\n\\nIf the homepage lacks full information, explore internal pages on the website such as /menu, /reservations, /order, /faqs, /about, or /contact. These subpages often contain critical business information and should be prioritized if they exist.\\n\\nDo not infer or assume anything. If specific information is not found or confirmed, clearly write Not specified.\\n\\nFocus especially on confirming what type of cuisine and dining options are offered, whether menus or prices are publicly available, and whether operating hours are clearly stated.\\n\\nThis information will be used in a voice assistant knowledge base and to generate personalized email outreach, so keep formatting clean, natural, and brief.\\n\\nUse plain text only. Do not use bullet points, quotation marks, or section headers. Do not fabricate information. Keep each field to one short sentence where possible. Maintain a neutral, factual tone suitable for voice agents and emails. Highlight anything unique about the restaurant that may help personalize outreach, such as if it is family-owned, locally sourced, award-winning, or specializes in a particular cuisine.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Input data: \\nCompany Name: {{ $json.title }}\\nCompany Website: {{ $json.website }}\"\n    }\n  ]\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -944,
+        96
+      ],
+      "name": "Perplexity"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -496,
+        96
+      ],
+      "name": "Download KB"
+    },
+    {
+      "parameters": {
+        "operation": "createFromText",
+        "content": "={{ $json.choices[0].message.content }}",
+        "name": "={{ $('Input Variables').item.json.title }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "{{REDACTED_ID}}",
+          "mode": "list",
+          "cachedResultName": "Restaurant KBs",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/{{GOOGLE_DRIVE_ID}}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -720,
+        96
+      ],
+      "name": "Create KB from text"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vapi.ai/file",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{REDACTED_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "multipart/form-data"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -272,
+        96
+      ],
+      "name": "Upload KB to Vapi",
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vapi.ai/tool",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{REDACTED_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"query\",\n  \"knowledgeBases\": [\n    {\n      \"name\": \"{{ $json.name }}-knowledge-base\",\n      \"provider\": \"google\",\n      \"description\": \"handles business-related questions\",\n      \"fileIds\": [\n        \"{{ $json.id }}\"\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -48,
+        0
+      ],
+      "name": "Query tool"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -48,
+        192
+      ],
+      "name": "Wait",
+      "webhookId": "{{REDACTED}}"
+    },
+    {
+      "parameters": {
+        "tableId": "visitors",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $('per services sheet').item.json['First Name'] }}"
+            },
+            {
+              "fieldId": "slug",
+              "fieldValue": "={{ $('create slug').item.json.slug }}"
+            },
+            {
+              "fieldId": "system",
+              "fieldValue": "={{ $json.model.messages[0].content }}"
+            },
+            {
+              "fieldId": "first_message",
+              "fieldValue": "={{ $json.firstMessage }}"
+            },
+            {
+              "fieldId": "id",
+              "fieldValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "name": "add row to supabase"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vapi.ai/assistant",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{REDACTED_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        0
+      ],
+      "name": "create assistant"
+    },
+    {
+      "parameters": {
+        "jsCode": "const title = $('Input Variables').first().json.title;\nconst toolId = $('Query tool').first().json.id;\nconsole.log(\"toolId:\", toolId);\nconsole.log(\"toolIds:\", [toolId]);\n\nconst systemMessageContent = `\n\n## Agent Identity & Purpose\n\nYou are **Kylie**, the friendly and professional AI voice agent for '${title}'. Your primary purpose is to:\n\n* Answer questions about the restaurant’s hours, menu, and dining options\n* Assist callers with reservations, takeout, or delivery orders\n\nYou have access to a structured knowledge base called **my-knowledge-base** to retrieve factual details but **never** mention the tool or that you’re using it.\n\n---\n\n## Tone & Style\n\n* Maintain a **warm yet professional** tone\n* Speak clearly and naturally with **friendly**, **organized**, and **efficient** language\n* Use conversational elements (e.g., “Let me check that for you”) to keep callers engaged\n* Use **phonetic spelling** for names when needed to ensure accuracy\n\n---\n\n## Interaction Guidelines\n\n1. **One question at a time**\n   Ask a single question and wait for the customer’s response before proceeding.\n2. **No numbered bullet lists**\n   Present options naturally within sentences instead of “1., 2., 3.”\n3. **Detail confirmation**\n   Restate important details explicitly, e.g.:\n\n   > Just to confirm, you’d like a reservation for two on Friday, September 12 at 7 PM. Is that correct?\n\n---\n\n## Call Opening & Booking Flow\n\n* **Opening line**\n\n  > Thank you for calling '${title}'. This is Kylie, how may I help you today?\n* **When reservations or orders are mentioned**\n\n  > I’d be happy to assist you. Could you tell me if you’d like to make a reservation, place a takeout order, or check delivery options?\n* **New customer data collection**\n  Collect full name, phone number, and any special requests (such as dietary needs or seating preferences) in a conversational manner.\n\n---\n\n## Handling Unavailable Information\n\nIf the knowledge base does not contain the requested detail:\n\n> I’m sorry, I don’t have that information on hand right now. Would you like me to check and get back to you, or connect you with a team member?\n\n---\n\n## General Best Practices\n\n* Guide callers smoothly through the interaction\n* Keep responses **concise** and **focused** on their needs\n* Always prioritize a **smooth dining and reservation experience**\n`;\n\nconst requestBody = {\n    \"model\": {\n      \"provider\": \"openai\",\n      \"model\": \"gpt-4o-mini\",\n      \"emotionRecognitionEnabled\": true,\n      \"temperature\": 0.2,\n      \"maxTokens\": 256,\n      \"toolIds\": [\n        $('Query tool').first().json.id\n      ],\n      \"messages\": [\n        {\n          \"role\": \"system\",\n          \"content\": JSON.stringify(systemMessageContent.slice(1, -1))\n        }\n      ]\n    },\n    \"transcriber\": {\n      \"provider\": \"deepgram\",\n      \"language\": \"en\",\n      \"model\": \"nova-3\"\n    },\n    \"voice\": {\n      \"model\": \"eleven_flash_v2\",\n      \"speed\": 0.8,\n      \"voiceId\": \"cgSgspJ2msm6clMCkdW9\",\n      \"provider\": \"11labs\",\n      \"stability\": 0.5,\n      \"similarityBoost\": 0.75\n    },\n    \"firstMessage\": `Thank you for calling ${title}. This is Kylie, how may I help you today?`,\n    \"maxDurationSeconds\": 600,\n    \"name\": `${title}-voice-agent`,\n    \"endCallMessage\": `Thanks for calling ${title}. Have a wonderful day!`\n};\n\nreturn {\n  json: requestBody\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        0
+      ],
+      "name": "create request body"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "slug",
+              "value": "={{ $json.text.replace(/\\s/g, '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1392,
+        96
+      ],
+      "name": "create slug"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.companyName }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an expert business name parser agent specialized in extracting the **core restaurant name** from titles in the **Restaurant** niche. Titles often include irrelevant information such as cuisine types, service descriptors, or location details. Your goal is to **isolate and return only the actual business name** — the unique, identifiable brand.\n\n---\n\n### Parsing Rules:\n\n1. **Preserve the Brand Name:**\n   Always retain the unique, brandable part of the name — the portion that would appear on a sign, logo, or menu.\n\n2. **Remove Cuisine or Service Descriptors:**\n   Remove generic food-related terms unless they are clearly part of the brand identity, such as:\n   `\"Restaurant\"`, `\"Bar\"`, `\"Grill\"`, `\"Cafe\"`, `\"Bistro\"`, `\"Pizzeria\"`, `\"Kitchen\"`, `\"Taco Shop\"`, `\"Bakery\"`, `\"Deli\"`, `\"BBQ\"`, `\"Chinese Food\"`, etc.\n\n3. **Remove Location References:**\n   Strip out city or regional names, such as:\n   `\"NYC\"`, `\"Brooklyn\"`, `\"Downtown\"`, `\"Uptown\"`, `\"Eastside\"`, `\"LA\"`, `\"TX\"`, `\"CA\"`, `\"Airport\"`, etc.\n\n4. **Remove Legal Suffixes:**\n   Discard terms like `\"Inc.\"`, `\"LLC\"`, `\"LLP\"`, `\"Co.\"`, `\"Company\"` if they appear at the end.\n\n5. **Keep as-is if Already Clean:**\n   If the title is already only the restaurant name (no descriptors or locations), return it unchanged.\n\n6. **Handle Acronyms and Portmanteaus Carefully:**\n   If the restaurant name is a stylized acronym or creative merge (e.g., “NOMNYC”, “GrillzUp”), do not split or over-trim — return the full brand name unless a clear descriptor or location suffix can be separated without harming brand identity.\n\n7. **Retain Creative Naming Patterns:**\n   If a food-related word is embedded creatively as part of the brand (e.g., “Burgerology”, “PastaNova”), **retain the full name** if it represents the brand identity and is not just a generic descriptor.\n\n---\n\n### Examples:\n\n* **Input:** \"Mama Lucia’s Italian Restaurant\"\n  **Output:** \"Mama Lucia’s\"\n\n* **Input:** \"El Camino Mexican Grill\"\n  **Output:** \"El Camino\"\n\n* **Input:** \"Sakura Japanese Steakhouse & Sushi Bar\"\n  **Output:** \"Sakura\"\n\n* **Input:** \"Brooklyn Pizza Co.\"\n  **Output:** \"Brooklyn Pizza\"\n\n* **Input:** \"Smokey’s BBQ Downtown\"\n  **Output:** \"Smokey’s\"\n\n* **Input:** \"Pho 95 Denver\"\n  **Output:** \"Pho 95\"\n\n* **Input:** \"TacoRita LA\"\n  **Output:** \"TacoRita\"\n\n* **Input:** \"NOMNYC\"\n  **Output:** \"NOMNYC\"\n\n* **Input:** \"Burgerology\"\n  **Output:** \"Burgerology\"\n\n* **Input:** \"PastaNova Kitchen\"\n  **Output:** \"PastaNova\"\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -1744,
+        96
+      ],
+      "name": "extract business name"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "{{REDACTED_ID}}",
+          "mode": "list",
+          "cachedResultName": "restaurant instantly leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{GOOGLE_SHEET_ID}}/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1946898863,
+          "mode": "list",
+          "cachedResultName": "Copy of leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{GOOGLE_SHEET_ID}}/edit#gid=1946898863"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -2192,
+        388
+      ],
+      "name": "per services sheet"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{{REDACTED_ID}}",
+          "mode": "list",
+          "cachedResultName": "restaurant instantly leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{GOOGLE_SHEET_ID}}/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1122976135,
+          "mode": "list",
+          "cachedResultName": "leads+slugs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{GOOGLE_SHEET_ID}}/edit#gid=1122976135"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "slug": "={{ $('create slug').item.json.slug }}",
+            "email": "={{ $('per services sheet').item.json.Email }}",
+            "website": "={{ $('Input Variables').item.json.website }}",
+            "companyName": "={{ $('per services sheet').item.json.companyName }}",
+            "Last contacted from": "={{ $('per services sheet').item.json['Last contacted from'] }}",
+            "icebreaker": "={{ $('per services sheet').item.json.icebreaker }}",
+            "icebreaker_rewritten": "={{ $('per services sheet').item.json.icebreaker_rewritten }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "displayName": "companyName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "displayName": "slug",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "displayName": "Last contacted from",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "displayName": "icebreaker",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "displayName": "icebreaker_rewritten",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        224
+      ],
+      "name": "Append row in sheet"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "per services sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "extract business name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "extract business name",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Variables": {
+      "main": [
+        [
+          {
+            "node": "Perplexity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity": {
+      "main": [
+        [
+          {
+            "node": "Create KB from text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download KB": {
+      "main": [
+        [
+          {
+            "node": "Upload KB to Vapi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create KB from text": {
+      "main": [
+        [
+          {
+            "node": "Download KB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload KB to Vapi": {
+      "main": [
+        [
+          {
+            "node": "Query tool",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query tool": {
+      "main": [
+        [
+          {
+            "node": "create request body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "add row to supabase": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create assistant": {
+      "main": [
+        [
+          {
+            "node": "add row to supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create request body": {
+      "main": [
+        [
+          {
+            "node": "create assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create slug": {
+      "main": [
+        [
+          {
+            "node": "Input Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract business name": {
+      "main": [
+        [
+          {
+            "node": "create slug",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "per services sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

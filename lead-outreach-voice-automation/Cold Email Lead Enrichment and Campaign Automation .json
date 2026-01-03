@@ -1,0 +1,432 @@
+{
+  "name": "101 - Cold Email Automation - AMF",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "⚡ When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1184,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "{{REDACTED_ID}}",
+          "mode": "list",
+          "cachedResultName": "restaurant - california",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{GOOGLE_SHEET_ID}}/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 281008031,
+          "mode": "list",
+          "cachedResultName": "restaurant - california.csv",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{{GOOGLE_SHEET_ID}}/edit#gid=281008031"
+        },
+        "options": {}
+      },
+      "name": "📊 Get Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -960,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.firstName }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.companyName }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "🔍 Filter Leads Without Necessary Info",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anymailfinder.com/v5.0/search/person.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"first_name\": \"{{ $json.message.content.first_name }}\",\n  \"last_name\": \"{{ $json.message.content.last_name }}\",\n  \"company_name\": \"{{ $('📊 Get Leads').item.json.companyName }}\"\n}\n",
+        "options": {}
+      },
+      "name": "📧 Find E-mail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        288,
+        272
+      ],
+      "retryOnFail": false,
+      "maxTries": 2,
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.instantly.ai/api/v2/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{REDACTED_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"campaign\": \"d74757b5-4ba4-483e-a4a5-8898fc39dff7\",\n  \"email\": \"{{ $('📧 Find E-mail').item.json.results.email }}\",\n  \"first_name\": \"{{ $('🤖 Clean First + Last Name').item.json.message.content.first_name }}\",\n  \"last_name\": \"{{ $('🤖 Clean First + Last Name').item.json.message.content.last_name }}\",\n  \"company_name\": \"{{ $('📊 Get Leads').item.json.companyName }}\",\n  \"skip_if_in_workspace\": false,\n  \"skip_if_in_campaign\": false,\n  \"skip_if_in_list\": false,\n  \"verify_leads_for_lead_finder\": true,\n  \"verify_leads_on_import\": true,\n  \"custom_variables\": {\n    \"icebreaker\": \"{{ $json.message.content.icebreaker }}\"\n  }\n}\n",
+        "options": {}
+      },
+      "name": "📤 Add Leads to Instantly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1088,
+        416
+      ],
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini-2024-07-18",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI-2024-07-18"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a name formatter. Your job is to clean and return ONLY the first and last name of a person. You must strip out titles, suffixes, emojis, nicknames, and irrelevant characters. Return a JSON with exactly two fields: \"first_name\" and \"last_name\". No middle names, no prefixes, no suffixes, no fluff.\n\nClean the following names and return ONLY a valid first and last name in JSON:\n\nInput:\nFirst Name: {{ $json.firstName }}\nLast Name: {{ $json.lastName }}\n\nRules:\n- Remove emojis (e.g., 🚀🔥)\n- Remove titles (e.g., Mr., Mrs., Dr.)\n- Remove suffixes (e.g., Jr., Sr., II, III)\n- Remove nicknames or symbols\n- Remove double spaces or extra whitespace\n- Capitalize the first letter of each name\n- Return ONLY this format:\n{\n  \"first_name\": \"CleanFirstName\",\n  \"last_name\": \"CleanLastName\"\n}\n\nDo not wrap the output in triple backticks. Return raw JSON only."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -64,
+        192
+      ],
+      "name": "🤖 Clean First + Last Name"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -288,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.success }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        512,
+        336
+      ],
+      "name": "✅ Check Valid Email1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini-2024-07-18",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI-2024-07-18"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are at a lively networking event, casually talking to business professionals.\n\nYour personality:\n- Friendly, confident, and curious—someone who’s great at breaking the ice.\n- You have just one sentence to spark interest and show you’ve done your homework.\n- You naturally mention something interesting about the other person’s company, role, or achievements.\n- You speak like a real human: casual, slightly conversational, and not overly polished.\n- Tiny imperfections (like a slightly misspelled word such as “experince” or “thats”) are fine.\n- Never pitch or sell—just leave a positive impression and open the door for conversation.\n\nRules:\n1. Strictly avoid using Em dash in the sentence. Don't use Em dashes anywhere never, No corporate buzzwords or generic compliments (e.g., avoid \"impressive career\" unless paired with specifics).\n2. Focus on positive, notable achievements from the data (company growth, years of experience, leadership roles). Use their company names or achievements specifically\n3. Strictly avoid sensitive or heavy topics (e.g., fraud, layoffs, or financial losses) unless celebratory.\n4. Keep it conversational, and natural, like what you’d say face-to-face.\n5. Do not use emojis, hashtags, or overly polished language.\n6. Always aim for a tone that feels respectful yet casual, like: “Wow, 25 years in hospitality, that’s some solid experince.”\n7. Respond with just the two sentence, nothing else, unless instructed otherwise.\n8. Sound like a human, strictly avoid writing or using any symbols that give away that it's an AT, strictly avoid using Em dash in the sentence\n",
+              "role": "system"
+            },
+            {
+              "content": "Respond in JSON only. Keep language very casual, not grammatically correct. Avoid variations of \"let's connect\". Strictly avoid writing or using any symbols that give away that it's an AT\n\n\nAlways output \\n for new lines. And output in JSON format.\nImportant: Return output as a valid JSON object.\nAll line breaks should be expressed as \\\\n\\\\n, and special characters (like quotes) must be properly escaped.\nDo not use smart quotes. Do not wrap the entire output in a string.\n\nExample output:\n\n{\n  \"icebreaker\": \"Hey John,\\\\n\\\\nCongrats on leading that chatbot project at XYZ Corp, figured I'd reach out.\"\n}\n\n"
+            },
+            {
+              "content": "={\n  \"fullName\": \"{{ $('🤖 Clean First + Last Name').item.json.message.content.first_name }}\",\n \"title\": \"{{ $('📊 Get Leads').item.json.title }}\",\n  \"companyName\": \"{{ $('📊 Get Leads').item.json.companyName }}\",\n  \"summary\": \"{{ $('📊 Get Leads').item.json.summary }}\"\n}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "maxTokens": "{{REDACTED}}",
+          "temperature": 0.6
+        }
+      },
+      "name": "🤖 Create Icebreaker",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        736,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "info.renewail@gmail.com",
+        "subject": "renewail101 - ✅ Cold Email Automation successful",
+        "emailType": "text",
+        "message": "=The workflow has finished running successfully and leads have been added to your Instantly campaign. \n\n- renewail101",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "name": "Send a message",
+      "webhookId": "{{REDACTED}}",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.row_number }}",
+              "rightValue": 2000,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "leftValue": "={{ $json.row_number }}",
+              "rightValue": 2152,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -736,
+        336
+      ],
+      "name": "Range"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⚡ When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "📊 Get Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Get Leads": {
+      "main": [
+        [
+          {
+            "node": "Range",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Filter Leads Without Necessary Info": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📧 Find E-mail": {
+      "main": [
+        [
+          {
+            "node": "✅ Check Valid Email1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Add Leads to Instantly": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Clean First + Last Name": {
+      "main": [
+        [
+          {
+            "node": "📧 Find E-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🤖 Clean First + Last Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Check Valid Email1": {
+      "main": [
+        [
+          {
+            "node": "🤖 Create Icebreaker",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Create Icebreaker": {
+      "main": [
+        [
+          {
+            "node": "📤 Add Leads to Instantly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Range": {
+      "main": [
+        [
+          {
+            "node": "🔍 Filter Leads Without Necessary Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "updatedAt": "2025-12-03T03:34:25.627Z",
+      "createdAt": "2025-12-03T03:34:25.627Z",
+      "name": "Cold Email"
+    }
+  ]
+}
